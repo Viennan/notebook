@@ -16,3 +16,16 @@
    - 为什么它天然支持异步、可中断、分布式的 agent 执行模型
    - 为什么安全边界应通过架构隔离而非权限假设来建立
    - 为什么解耦能同时改善可靠性、企业接入能力与 `TTFT`
+
+### Long-Running Harness 与 Agent Workflow Design
+
+1. [Harness design for long-running application development](./Harness%20design%20for%20long-running%20application%20development.md)
+
+   这篇导读聚焦 Anthropic 如何围绕长时间应用开发任务设计 `harness`，把主观设计评审、任务拆解、QA 验证与上下文治理组合成可持续迭代的 agent workflow。重点包括：
+
+   - 为什么 naive harness 会在长任务里遭遇 context drift 与 self-evaluation 失真
+   - 为什么 `generator / evaluator` 结构能显著改善前端设计和应用开发质量
+   - 为什么 `planner / generator / evaluator` 比单一 coding agent 更适合 full-stack application development
+   - 为什么 `context reset`、`compaction` 与 structured artifact 是长任务稳定性的关键
+   - 为什么 harness 复杂度应随着模型能力与任务难度共同变化持续做 ablation，而不是简单做加法或减法
+   - 为什么这篇文章与 Managed Agents 文章分别代表任务级 workflow 设计与平台级 runtime 设计两条互补路线
