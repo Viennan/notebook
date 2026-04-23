@@ -1,0 +1,3 @@
+[submodule "ai-engineering/graphify-research/graphify"]
+	path = ai-engineering/graphify-research/graphify
+	url = https://github.com/safishamsi/graphify.git
