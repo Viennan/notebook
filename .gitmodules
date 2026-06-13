@@ -1,3 +1,3 @@
-[submodule "ai-engineering/graphify-research/graphify"]
-	path = ai-engineering/graphify-research/graphify
+[submodule "notes/code-ana_graphify/graphify"]
+	path = notes/code-ana_graphify/graphify
 	url = https://github.com/safishamsi/graphify.git

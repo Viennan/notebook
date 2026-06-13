@@ -12,16 +12,16 @@
 
 本专题主要依据：
 
-- [`graphify/graphify/__main__.py`](graphify/graphify/__main__.py)
-- [`graphify/graphify/hooks.py`](graphify/graphify/hooks.py)
-- [`graphify/graphify/skill.md`](graphify/graphify/skill.md)
-- [`graphify/graphify/skill-codex.md`](graphify/graphify/skill-codex.md)
-- [`graphify/graphify/skill-opencode.md`](graphify/graphify/skill-opencode.md)
-- [`graphify/graphify/skill-vscode.md`](graphify/graphify/skill-vscode.md)
-- [`graphify/graphify/skill-kiro.md`](graphify/graphify/skill-kiro.md)
-- [`graphify/tests/test_install.py`](graphify/tests/test_install.py)
-- [`graphify/tests/test_claude_md.py`](graphify/tests/test_claude_md.py)
-- [`graphify/tests/test_hooks.py`](graphify/tests/test_hooks.py)
+- [`graphify/graphify/__main__.py`](./graphify/graphify/__main__.py)
+- [`graphify/graphify/hooks.py`](./graphify/graphify/hooks.py)
+- [`graphify/graphify/skill.md`](./graphify/graphify/skill.md)
+- [`graphify/graphify/skill-codex.md`](./graphify/graphify/skill-codex.md)
+- [`graphify/graphify/skill-opencode.md`](./graphify/graphify/skill-opencode.md)
+- [`graphify/graphify/skill-vscode.md`](./graphify/graphify/skill-vscode.md)
+- [`graphify/graphify/skill-kiro.md`](./graphify/graphify/skill-kiro.md)
+- [`graphify/tests/test_install.py`](./graphify/tests/test_install.py)
+- [`graphify/tests/test_claude_md.py`](./graphify/tests/test_claude_md.py)
+- [`graphify/tests/test_hooks.py`](./graphify/tests/test_hooks.py)
 
 ## 2. 总体适配模型
 

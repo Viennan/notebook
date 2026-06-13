@@ -36,7 +36,7 @@ flowchart TD
 
 ## 3. extraction 输出的基本形态
 
-从 [`graphify/graphify/extract.py`](graphify/graphify/extract.py) 看，抽取层的核心输出是一个 dict，典型字段包括：
+从 [`graphify/graphify/extract.py`](./graphify/graphify/extract.py) 看，抽取层的核心输出是一个 dict，典型字段包括：
 
 - `nodes`
 - `edges`
@@ -432,7 +432,7 @@ Python rationale 抽取关注两类信息：
 
 ## 12. 测试能说明什么
 
-从 [`graphify/tests/test_extract.py`](graphify/tests/test_extract.py)、[`graphify/tests/test_languages.py`](graphify/tests/test_languages.py)、[`graphify/tests/test_rationale.py`](graphify/tests/test_rationale.py) 可以看到几个很明确的项目意图：
+从 [`graphify/tests/test_extract.py`](./graphify/tests/test_extract.py)、[`graphify/tests/test_languages.py`](./graphify/tests/test_languages.py)、[`graphify/tests/test_rationale.py`](./graphify/tests/test_rationale.py) 可以看到几个很明确的项目意图：
 
 ### 12.1 ID 稳定性是被测试的
 

@@ -2,7 +2,7 @@
 
 ## 文档列表
 
-### [`graphify-report.md`](graphify-report.md)
+### [`graphify-report.md`](./graphify-report.md)
 
 一份关于 `graphify` 的主研究报告，重点覆盖：
 
@@ -18,7 +18,7 @@
 
 适合在第一次接触 `graphify` 时通读，也适合作为后续专题文档的总入口。
 
-### [`graphify-extraction.md`](graphify-extraction.md)
+### [`graphify-extraction.md`](./graphify-extraction.md)
 
 `graphify` 抽取层专题研究，重点覆盖：
 
@@ -31,7 +31,7 @@
 
 适合在已经了解主报告后，继续深入 `graphify` 的结构骨架是如何建立的。
 
-### [`graphify-agent-integration.md`](graphify-agent-integration.md)
+### [`graphify-agent-integration.md`](./graphify-agent-integration.md)
 
 `graphify` 多代码 agent 平台适配专题研究，重点覆盖：
 
@@ -64,9 +64,9 @@
 
 ## 建议阅读顺序
 
-1. 先读 [`graphify-report.md`](graphify-report.md)，建立全局认识。
-2. 再读 [`graphify-extraction.md`](graphify-extraction.md)，理解 AST 抽取与结构骨架如何形成。
-3. 接着读 [`graphify-agent-integration.md`](graphify-agent-integration.md)，理解它如何嵌入不同代码 agent 平台。
+1. 先读 [`graphify-report.md`](./graphify-report.md)，建立全局认识。
+2. 再读 [`graphify-extraction.md`](./graphify-extraction.md)，理解 AST 抽取与结构骨架如何形成。
+3. 接着读 [`graphify-agent-integration.md`](./graphify-agent-integration.md)，理解它如何嵌入不同代码 agent 平台。
 4. 如果后续继续扩展知识库，可优先补充：
    `graphify-benchmarking.md`
    `graphify-security.md`
