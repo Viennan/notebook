@@ -1,3 +1,6 @@
 [submodule "notes/code-ana_graphify/graphify"]
 	path = notes/code-ana_graphify/graphify
 	url = https://github.com/safishamsi/graphify.git
+[submodule "notes/code-ana_opencode/opencode"]
+	path = notes/code-ana_opencode/opencode
+	url = https://github.com/anomalyco/opencode.git
