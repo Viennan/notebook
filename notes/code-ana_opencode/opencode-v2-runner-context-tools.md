@@ -893,6 +893,46 @@ V2 compaction 的核心取舍是：把旧对话从“可继续执行的消息流
 
 因此它不是“无损压缩”，而是一个面向 coding agent 运行时的状态折叠：保留继续工作所需的主线、约束、进度、文件和近端细节，同时牺牲旧 transcript 的精确结构。
 
+### Q14：是否可以用原始 LLM 对话格式做 compaction，以提高保真度和缓存利用？
+
+可以设想另一种 compaction 方案：
+
+```text
+system:
+  当前 agent/system/baseline
+
+messages:
+  近期要压缩的 user/assistant/tool 历史，完全保持 provider 原格式
+  user: 请按指定格式总结以上对话
+```
+
+这个方案的吸引力很明显。
+
+首先，它比当前文本序列化更保真。opencode 当前会把历史转成 `[User]: ...`、`[Assistant tool call]: ...`、`[Tool result]: ...` 这样的文本记录。这会丢失一部分 provider 原生结构，例如 role 边界、tool call/result 的精确 block 形态、provider metadata、reasoning 降级细节和附件块形态。原格式 replay 可以让模型按照它本来理解对话的方式读取历史。
+
+其次，它可能更容易利用 prompt cache。compaction 通常发生在真实 provider turn 附近，如果 compaction 请求和真实请求共享大段相同前缀，provider 的 prefix cache 可能有更高命中率。当前 opencode 把旧历史重新序列化成一条 summary prompt，token 序列和真实 coding turn 差异很大，缓存收益自然会弱一些。
+
+但这个方案也会改变 compaction 的语义边界。
+
+最大的问题是 summary 请求会变得不够隔离。compaction 想要的是一个离线 summarizer：读取旧历史，产出 checkpoint。如果把旧历史按原始 role 重新 replay，再追加“请总结”，模型更容易把它当成当前 coding agent 对话的下一步。旧用户指令、system update、assistant 计划、工具输出里的 prompt-like 内容，会以更强的原始对话结构影响 summary。
+
+这和 V2 当前设计的安全取向不同。当前设计先把旧历史文本化，再在后续用 user role 的 `<conversation-checkpoint>` 提供给模型，目的不是让摘要更权威，而是把旧对话降级成历史事实。
+
+第二个问题是 provider 原格式不等于 provider-neutral 格式。OpenAI Responses、Anthropic Messages、OpenAI-compatible chat、Bedrock Converse 对 tool call、tool result、reasoning、content block 的约束都不同。如果 compaction 依赖“完全按照 provider 原格式”，它就会更深地绑定 provider adapter，甚至需要为不同 provider 写不同的历史重放规则。
+
+第三个问题是 cache 命中并不必然稳定。要最大化 cache，compaction 请求必须和真实请求前缀高度一致。但 summary 请求通常又不应该继承完整 tools、完整 agent 行为或当前用户任务意图。真实请求如果已经被 provider 拒绝，也未必会写入可复用缓存。因此 cache 可以作为优化目标，但不应成为 compaction 语义设计的第一原则。
+
+第四个问题是 `recent-context` 的边界会变复杂。opencode 当前连 keep token 范围内的内容也文本化后放入 checkpoint，这意味着 compaction 边界之前的内容都变成“历史记录”。如果原格式 replay 后又把 recent 原样保留为真实 message，那么旧对话会一部分变成 summary，一部分继续作为活的 conversation 存在。这样保真度更高，但权限降级边界更不干净。
+
+比较合理的折中方向可能是：
+
+1. summary 生成阶段使用 provider-neutral canonical LLM messages，而不是 provider raw payload。
+2. 不暴露 tools，或者使用明确的 summarization-only system，避免 compaction turn 变成 agent continuation。
+3. 对旧 system/developer/context source 做降权或显式历史化，不把它们原样作为当前高权限 instruction replay。
+4. 把 cache 命中当成性能优化，而不是决定消息语义的核心目标。
+
+因此，这种“原格式 replay compaction”适合作为高保真模式或实验方向，但不一定适合作为默认。opencode 当前方案看起来更笨、更有损，但它换来的是 provider-neutral、summary 隔离、权限降级边界，以及“旧对话不再作为活对话执行”的清晰语义。
+
 ## 一次 tool continuation 的完整链路
 
 ```mermaid
