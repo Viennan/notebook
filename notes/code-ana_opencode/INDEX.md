@@ -31,6 +31,33 @@
 
 适合理解 opencode 为什么能从“回答问题”升级为“持续读写代码、调用工具、委派子任务的编码代理”。
 
+### [`opencode-multi-agent.md`](./opencode-multi-agent.md)
+
+multi-agent 能力与设计专题报告，重点覆盖：
+
+- opencode 的 multi-agent 为什么更像 task/subagent session delegation，而不是自治 agent swarm
+- primary agent、subagent、agent profile、mode、description、model、permission 之间的关系
+- `task` 工具如何作为 multi-agent 调用边界，创建或复用 child session
+- 模型自动委派、用户 `@subagent` 手动委派、`permission.task` 和 `bypassAgentCheck` 的差异
+- parent/child session 在 transcript、tool state、permission、result 回流上的隔离与共享
+- foreground/background subagent、`task_id` resume、background result synthetic prompt 注入
+- opencode multi-agent 设计背后的上下文经济、权限边界和工程取舍
+
+适合理解 opencode 如何把多代理能力实现为可审计、可取消、可权限约束的父子任务委派机制。
+
+### [`opencode-edit-tool.md`](./opencode-edit-tool.md)
+
+`edit` 工具专题研究报告，重点覆盖：
+
+- `edit` 作为局部代码修改能力，如何连接 read、permission、diff、formatter、watcher、LSP 和后续迭代
+- 旧版 `edit` 的参数、执行链路、diff metadata、权限审批和写入后诊断反馈
+- 旧版 fuzzy replacer pipeline 如何处理 LLM 常见复制/缩进/转义/上下文偏差
+- V2 `edit` 如何收缩为 exact-edit leaf，并通过 typed schema、permission-first、conditional commit 固定核心语义
+- `edit` 与 `write`、`apply_patch`、`read` 的边界，以及典型 coding 任务中的使用情形
+- 从 prompt-heavy 工具工作流迁移到 runtime-heavy 工具核心的设计取舍
+
+适合理解 opencode 如何把“读懂代码后做一个小而具体的修改”工程化成可审批、可诊断、可继续迭代的工具协议。
+
 ### [`opencode-session-v1-v2.md`](./opencode-session-v1-v2.md)
 
 SessionV1 与 SessionV2 深度对比报告，重点覆盖：
@@ -97,6 +124,19 @@ V2 runner、context 与 tool settlement 专题，重点覆盖：
 
 适合理解 V2 agent turn 的真实执行内核。
 
+### [`opencode-prompt-system.md`](./opencode-prompt-system.md)
+
+opencode 提示词系统深度研究，重点覆盖：
+
+- V2 core runner 与旧 `SessionPrompt` 路径中 system prompt 的组成差异
+- `ContextEpoch`、AGENTS.md、skill guidance、reference guidance 如何进入系统上下文
+- `bash`、`edit`、`write`、`read`、`grep/glob`、`todowrite`、`skill`、`question` 等常用工具的提示词和结果渲染设计
+- MCP tools/prompts/resources 如何被纳入工具、command 和附件上下文
+- skill 系统如何采用“索引优先、按需加载”的提示词策略
+- opencode prompt 设计的方法论、coding task 组织方式、magic 机制与记忆系统边界
+
+适合理解 opencode 如何把提示词、工具定义、权限、上下文源和运行时事件组织成一个 coding agent。
+
 ## 当前结论摘要
 
 opencode 的 agent 主干是一个 session continuation loop。plan、coding、subagent 共享同一套循环，差异主要来自 agent profile、权限规则、工具集合和 synthetic prompt。旧版公开路径仍以 `packages/opencode/src/session/prompt.ts` 为核心；V2 core 已经实现更 durable 的 prompt queue、runner、domain events、projection 和 tool settlement，是迁移中的目标架构。
@@ -105,13 +145,16 @@ opencode 的 agent 主干是一个 session continuation loop。plan、coding、s
 
 1. 先读 [`opencode-agent-core-report.md`](./opencode-agent-core-report.md)，理解用户 prompt 如何变成 agent loop。
 2. 再读 [`opencode-tools-plan-subagents.md`](./opencode-tools-plan-subagents.md)，理解 plan/coding/subagent 和工具权限如何组成行动能力。
-3. 接着读 [`opencode-session-v1-v2.md`](./opencode-session-v1-v2.md)，理解 V1/V2 session runtime 的抽象差异和设计哲学。
-4. 然后读 [`opencode-v2-layered-architecture.md`](./opencode-v2-layered-architecture.md)，建立 V2 分层地图。
-5. 按需要逐层读：
+3. 读 [`opencode-multi-agent.md`](./opencode-multi-agent.md)，进一步理解 task/subagent session delegation 的能力边界与设计取舍。
+4. 读 [`opencode-edit-tool.md`](./opencode-edit-tool.md)，深入理解最核心的局部代码修改工具如何工作。
+5. 接着读 [`opencode-session-v1-v2.md`](./opencode-session-v1-v2.md)，理解 V1/V2 session runtime 的抽象差异和设计哲学。
+6. 然后读 [`opencode-v2-layered-architecture.md`](./opencode-v2-layered-architecture.md)，建立 V2 分层地图。
+7. 按需要逐层读：
    [`opencode-v2-input-execution.md`](./opencode-v2-input-execution.md)
    [`opencode-v2-events-projection.md`](./opencode-v2-events-projection.md)
    [`opencode-v2-runner-context-tools.md`](./opencode-v2-runner-context-tools.md)
-6. 后续若继续扩展，可补充：
+8. 最后读 [`opencode-prompt-system.md`](./opencode-prompt-system.md)，理解提示词、工具、MCP、skills、权限和记忆边界如何合成 coding agent。
+9. 后续若继续扩展，可补充：
    `opencode-message-storage.md`
    `opencode-v2-location-runtime.md`
    `opencode-v2-permission-policy.md`
