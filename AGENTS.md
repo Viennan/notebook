@@ -24,3 +24,4 @@ This project is a collection of study notes, including but not limited to course
   - `notes/INDEX.md` should use relative link.
 - Experience docs:
   - The `docs` directory is reserved for best practices related to this project's maintenance.
+  - Before starting a deep code analysis topic, read `docs/code-analysis-best-practices.md` for workflow guidance.
