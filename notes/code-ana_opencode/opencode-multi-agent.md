@@ -59,6 +59,36 @@ opencode 支持两种委派入口：
 
 前者是 agent 自主调度，后者是用户指定角色。两者最终都落到同一个边界：`TaskTool.execute`。
 
+### 开发任务生命周期中的 subagent 介入点
+
+如果把一次典型 coding task 拆成“理解 -> 设计 -> 实施 -> 验证/审查”，当前源码里比较容易出现 subagent 的环节主要有下面几类。
+
+1. **代码库摸底 / 范围澄清**
+   - 默认 prompt 明确要求：当任务不是“找一个已知文件里的针尖问题”时，优先用 `task` 做代码库探索，而不是 parent 自己直接大量 search/read。
+   - plan mode 的 Phase 1 甚至写死为“只允许使用 `explore`”，并且建议最多并行启动 3 个 explore agents。
+
+2. **方案设计 / 计划收敛**
+   - plan mode 的 Phase 2 会提示 primary agent 启动 `general` 来形成实现计划。
+   - 这里的 subagent 更像 research/design worker，而不是执行器；primary 负责综合多个结果并写回最终 plan。
+
+3. **实施阶段的并行工作单元**
+   - `general` 的 description 明确写了“execute multiple units of work in parallel”。
+   - 这意味着主 agent 在进入编码阶段后，可以把彼此独立的子问题拆给多个 child session，例如分别调查不同模块、验证不同假设、处理不同文件簇。
+
+4. **大输出、长搜索或长上下文的卸载**
+   - `truncate.ts` 在工具输出过长时，会提示当前 agent 使用 `task` 把完整输出文件委托给 `explore` 处理，而不是 parent 自己把整份大文件读回主上下文。
+   - 这类 subagent 的作用更偏 context economy，而不是“另一个专家人格”。
+
+5. **独立且可异步推进的后台工作**
+   - 开启 `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` 后，`task(background=true)` 可让 child session 在后台继续跑。
+   - 适合与当前主线程不重叠、且不需要立刻得到答案的研究或生成类任务。
+
+6. **显式 review / QA 动作**
+   - 这不是默认硬编码步骤，但可以通过 `@subagent`、`/review` command、或自定义 review agent 触发。
+   - 也就是说，opencode 支持把“审查”做成 child session 工作单元，但是否在开发收尾阶段触发，主要取决于 prompt、command 配置和用户/agent 的选择。
+
+再强调一个结构边界：默认 child session 会额外继承 `task: deny` 与 `todowrite: deny`，除非 subagent 自己显式声明这些权限。这意味着内置 subagent 默认更像叶子 worker，而不是会继续自动分叉出下一层 swarm 的 coordinator。
+
 ### 并行与后台 subagent
 
 [`task.txt`](./opencode/packages/opencode/src/tool/task.txt) 明确提示模型可以在一个响应里发起多个 task tool calls，从而并行运行多个 subagent。并行性不是来自一个专门调度器，而是来自 provider/tool-call 层允许一个 assistant message 包含多个 tool call。
@@ -214,6 +244,76 @@ SubtaskPart
 这个 bypass 很关键：用户显式 `@subagent` 本质上是用户直接指定子代理，因此不会再受 parent agent 的 `permission.task` 路由限制。文档也明确说，用户可通过 `@` 直接调用 subagent，即使当前 agent 的 task 权限会拒绝自动调用该 subagent。
 
 但这不意味着 subagent 可以无权限乱跑。child session 里真正能调用哪些工具，仍由 subagent 自己的 permission 和 session permission 决定。
+
+## 有没有类似 “code review agent” 的概念？
+
+结论先说：
+
+> **有“把 review 做成独立 agent / child session”这条能力路径，但当前默认实现里没有一个“primary 完成编码后必定自动调用的内置 code review agent”。**
+
+这件事需要分成四层看。
+
+### 1. 默认内置 agent 里，没有当前源码可见的 `review` / `code-reviewer`
+
+当前 commit 下，旧版默认 agent 表和 V2 `plugin/agent.ts` 里能稳定看到的 built-in 主要仍是 `build`、`plan`、`general`、`explore`，再加隐藏的 `compaction`、`title`、`summary`。没有看到一个默认注册的 `review` 或 `code-reviewer` agent。
+
+这意味着：
+
+- opencode 默认不是“build -> review agent -> user reply”三段式硬流程。
+- primary agent 完成开发任务后的默认收尾，更接近“自己总结结果，并按 prompt 要求跑 lint/typecheck/验证”。
+
+### 2. 文档和 agent 生成系统都明确支持自定义 review agent
+
+官方 agents 文档给了两个非常直接的例子：
+
+- 在 `opencode.json` 里定义 `code-reviewer` subagent。
+- 在 `.opencode/agents/review.md` 里定义只读 review agent。
+
+更进一步，agent 生成提示词 [`generate.txt`](./opencode/packages/opencode/src/agent/generate.txt) 甚至把“写完一个逻辑代码块后，再调用 `code-reviewer` agent 做 review”当成示例。这说明 opencode 的产品心智里，**“开发完后再起一个 review subagent”是被鼓励的自定义模式**。
+
+但这里要注意：这是“支持用户配置出这种模式”，不是 runtime 自带了一个不可关闭的默认后置 hook。
+
+### 3. 内置 `/review` command 提供了 review 能力，但它不是默认独立 review agent
+
+当前源码确实有一个内置 `review` command：
+
+- command 模板是 [`packages/opencode/src/command/template/review.txt`](./opencode/packages/opencode/src/command/template/review.txt)
+- V2 command plugin 也注册了同名命令，并把它标记为 `subtask: true`
+
+`subtask: true` 很关键。它会让 `/review` 命令在 `SessionPrompt.command` 里被包装成 `SubtaskPart`，再走 `handleSubtask -> TaskTool.execute` 这条 child session 路径。
+
+但默认情况下，这个 `/review` command **并没有同时绑定一个专门的 review subagent**。如果用户没有在 command 配置里额外指定 `agent`，它通常会继承当前 agent；于是实际效果更像：
+
+```text
+当前 agent
+  └─ 以 child session 方式执行 review prompt
+```
+
+所以 `/review` 更准确的说法是：
+
+- 它是一个**内置的 review 子任务入口**；
+- 不是一个**默认内置且固定命名的 review subagent**；
+- 如果你把 command 的 `agent` 显式绑到自定义 `review`/`code-reviewer` subagent，它就会变成非常接近“primary 做完后叫另一个 review agent 复查”的模式。
+
+### 4. 还有 PR review / GitHub review 工作流，但它不属于本地 coding session 的默认收尾链路
+
+源码和文档里还有另一条 review 能力线：
+
+- GitHub handler 能处理 `pull_request`、`pull_request_review_comment` 等事件。
+- 文档也说明 PR 打开或更新时可触发 review workflow。
+
+这说明 opencode 不只是能在本地 session 里做 review，也能在 GitHub/PR 自动化场景里做 review。但这是另一条集成链路，不应和“primary agent 在本地完成编码后，自动叫一个 review subagent”混为一谈。
+
+## 一个更准确的判断
+
+如果只问“当前 opencode 的开发任务主链里，是否存在类似 code review agent 的概念”，比较准确的回答是：
+
+1. **默认主链里没有硬编码的 post-implementation review agent。**
+2. **有内置 `/review` 子任务能力，可以把 review 放进 child session。**
+3. **有明确的一等扩展点，允许用户定义只读 review subagent，并让 primary 在完成某个代码块后主动调用它。**
+4. **还有独立于本地 session 的 PR review / GitHub review 自动化能力。**
+
+所以它更像“review is a supported agent pattern / command pattern”，而不是“review agent is a mandatory built-in stage in the coding loop”。
 
 ## Child Session：subagent 的执行容器
 

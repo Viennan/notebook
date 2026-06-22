@@ -23,6 +23,7 @@
 
 - `build`、`plan`、`general`、`explore` 等 agent 如何通过权限和 prompt 形成不同工作模式
 - plan 模式如何通过 synthetic reminder 和 `plan_exit` 切换到 build
+- plan 产物在普通模式下主要是 transcript，自 experimental plan mode 起才明确落成 Markdown 计划文件；build 阶段主要靠用户确认、agent 切换、权限切换和 prompt 软约束按 plan 执行
 - 工具 registry 如何被包装成 AI SDK tools
 - 权限系统如何在 allow/ask/deny 之间决策
 - tool part 生命周期如何被 processor 持久化

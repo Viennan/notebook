@@ -73,6 +73,159 @@ text: `The plan at ${plan} has been approved, you can now edit files. Execute th
 
 这个 synthetic user message 会被同一个 `SessionPrompt` loop 继续消费，于是控制流自然从 plan agent 转到 build agent。这里没有新引擎，只有新 user message、agent 字段和权限集合。
 
+## Plan 的产物究竟是什么？
+
+这里要区分“plan agent”这个基础模式和 `OPENCODE_EXPERIMENTAL_PLAN_MODE` 打开的增强模式。
+
+### 非 experimental plan：主要是 transcript 里的计划
+
+默认 `plan` agent 本身只是一个 primary agent profile：权限上禁止业务代码 edit/write，prompt 上要求只读分析和形成计划。非 experimental plan mode 下，`SessionReminders.apply` 只会注入 [`prompt/plan.txt`](./opencode/packages/opencode/src/session/prompt/plan.txt) 这样的 read-only reminder；它没有要求模型必须写一个计划文件，也没有注册 `plan_exit` 工具。
+
+因此在这条路径里，plan 的产物主要是 assistant 在 session transcript 中输出的自然语言计划。用户可以手动切回 `build`，系统会注入 [`build-switch.txt`](./opencode/packages/opencode/src/session/prompt/build-switch.txt)，提醒 agent 已从 plan 切到 build、可以修改文件。
+
+### Experimental plan：产物是一个 Markdown 计划文件
+
+开启 `OPENCODE_EXPERIMENTAL_PLAN_MODE=true` 后，plan 模式会变得更明确：计划产物是一个文件。
+
+路径由 [`Session.plan(...)`](./opencode/packages/opencode/src/session/session.ts) 生成：
+
+```text
+如果项目有 VCS:
+  ${worktree}/.opencode/plans/${session.time.created}-${session.slug}.md
+
+否则:
+  ${Global.Path.data}/plans/${session.time.created}-${session.slug}.md
+```
+
+这不是数据库里的独立 plan record，也不是结构化 JSON。它只是一个由 session `created` 时间和 `slug` 决定路径的 Markdown 文件。
+
+`plan` agent 的权限也围绕这个文件设计：
+
+- 普通 `edit: "*"` 被 deny。
+- `.opencode/plans/*.md` 被 allow。
+- 全局 data plans 下对应相对路径被 allow。
+
+测试 [`agent.test.ts`](./opencode/packages/opencode/test/agent/agent.test.ts) 覆盖了“plan agent denies edits except `.opencode/plans/*`”这个语义。
+
+### 内容格式是软约定，不是结构化 schema
+
+[`plan-mode.txt`](./opencode/packages/opencode/src/session/prompt/plan-mode.txt) 对计划文件内容有 prompt-level 要求：
+
+- 只写最终推荐方案，不堆所有备选。
+- 足够简洁可扫描，但细节足够执行。
+- 包含关键修改文件路径。
+- 包含 verification section，说明如何端到端验证。
+
+但代码里没有看到计划文件内容的 parser、schema、validator 或 domain model。`plan_exit` 工具的参数 schema 是空对象 `{}`；它不会读取计划文件，也不会检查计划文件是否符合某个机器可读格式。
+
+所以更准确地说：
+
+```text
+plan artifact = Markdown file path + prompt-defined content convention
+not = typed Plan object / checked checklist / executable workflow spec
+```
+
+## Build 阶段如何“按 plan”执行？
+
+opencode 对“按 plan 执行”的保障主要分成硬边界和软约束。
+
+### 硬边界：切换、权限和用户确认
+
+在 experimental plan mode 下，`plan_exit` 是从 plan 到 build 的主要门：
+
+1. `plan_exit` 先计算 plan 文件相对路径。
+2. 通过 `Question.Service` 问用户是否切换到 build agent 并开始执行。
+3. 用户选 “No” 时抛出 `Question.RejectedError`，不会创建 build user message。
+4. 用户选 “Yes” 后，系统写入一条 synthetic user message：
+
+```text
+The plan at ${plan} has been approved, you can now edit files. Execute the plan
+```
+
+这条 user message 的 `agent` 字段是 `build`，因此后续 loop 使用 build agent 的权限集合。build agent 不再受 plan agent 的 edit deny 约束，可以真正修改业务代码。
+
+此外，如果用户或系统从 plan assistant 之后切到 build，`SessionReminders.apply` 也会注入 build-switch reminder。experimental plan mode 下如果计划文件存在，额外提醒：
+
+```text
+A plan file exists at ${plan}. You should execute on the plan defined within it
+```
+
+这些是当前代码里能看到的“执行计划”硬入口：用户确认、agent 切换、权限切换、synthetic prompt。
+
+### 软约束：build 需要自己遵循提示并读取计划
+
+build 阶段并没有一个 runtime runner 去解析 Markdown plan 并逐条执行。具体来说，当前代码没有看到：
+
+- 自动把 plan 文件内容 attach 到 build prompt。
+- 自动读取 plan 文件并塞进 provider context。
+- 根据 plan 中的文件列表限制 edit/write 范围。
+- 检查每次 edit 是否对应 plan 条目。
+- 维护 plan item 的 completed/in_progress 状态。
+- 在任务结束前校验所有 plan 项都完成。
+
+`plan_exit` 只把计划文件路径写进 synthetic message；`SessionReminders.apply` 也只是提示“plan file exists”。因此 build agent 如果要知道计划内容，仍需要自己用 read 工具读取那个 Markdown 文件。
+
+换句话说，build 的“按 plan 执行”不是一个强制执行器，而是：
+
+```text
+approved plan file path
+  + build-switch reminder
+  + build agent prompt compliance
+  + normal tool/permission system
+  + user/assistant review and verification
+```
+
+这解释了一个重要边界：opencode 的 plan 文件是可审计、可恢复、可被用户阅读的计划锚点，但它还不是一个机器解释的 workflow spec。真正的执行顺序、是否偏离计划、是否需要回读 plan，仍由 build agent 在普通 session loop 中根据 prompt 和上下文判断。
+
+## FAQ
+
+### 1. plan/build 是同一个 agent 的不同执行模式吗？
+
+语义上可以粗略理解为“同一个 coding session 的不同执行模式”，但代码上不是同一个 `Agent.Info` 对象切状态。
+
+`build` 和 `plan` 是两个不同的 primary agent profile，二者共享同一套 `SessionPrompt` runtime loop。每轮 loop 会根据最新 user message 的 `agent` 字段调用 `agents.get(lastUser.agent)`，然后用对应 agent 的 prompt、权限、工具可见性和 step policy 继续执行。
+
+因此更准确的说法是：
+
+```text
+same session + same SessionPrompt loop
+different primary agent profile: build / plan
+```
+
+### 2. plan 到 build 的“切换”是不是靠中途插入 system reminder？
+
+不完全是。真正让下一轮使用 build agent 的，是 `plan_exit` 插入的 synthetic user message：
+
+```text
+agent: "build"
+text: "The plan at ... has been approved, you can now edit files. Execute the plan"
+```
+
+这条 message 改变了后续 loop 解析到的 `lastUser.agent`，因此下一轮会以 build agent profile 运行。
+
+`SessionReminders.apply` 的作用是补充上下文提醒：
+
+- plan agent 当前运行时，注入 plan-mode reminder。
+- 从 plan assistant 切到 build 时，注入 build-switch reminder。
+- experimental plan mode 下，如果 plan 文件存在，还会提醒 build agent 按该 plan 文件执行。
+
+所以切换由 “synthetic user message 的 agent 字段” 驱动，reminder 是提示词层的模式说明和约束补强。
+
+### 3. 如果没有 compaction，最开头的 system context 会因为 plan/build 切换而变化吗？
+
+对内置 `build`/`plan` 来说，通常不会变成另一份专门的 plan/build system prompt。
+
+每轮 provider request 都会重新组装 system prompt。组装逻辑是：如果当前 agent 有 `agent.prompt`，优先使用它；否则使用按 provider/model 选择的默认 prompt，再拼接环境、指令、skills 等 system 内容。当前内置 `build`/`plan` 没有各自专属 `agent.prompt`，所以基础 provider system prompt 通常相同。
+
+变化主要发生在这些地方：
+
+- 当前 agent profile 变了，权限和可见工具集合会变。
+- `SessionReminders.apply` 插入的 `<system-reminder>` 作为消息历史进入 model messages。
+- 如果发生 compaction，旧的 plan reminder、plan 讨论和 plan 文件路径可能被摘要化，不一定逐字保留。
+- 如果用户配置了自定义 agent prompt，那么切换 agent 时 system prompt 开头可能真的不同。
+
+所以“没有 compaction 时，最开头的基础 system prompt 不因内置 plan/build 切换而显著变化”基本成立；但模型输入整体仍会因为 synthetic reminder、agent profile、tools 和 permissions 改变。
+
 ## 当前工具系统：从 registry 到 AI SDK tools
 
 旧版工具 registry 位于 [`packages/opencode/src/tool/registry.ts`](./opencode/packages/opencode/src/tool/registry.ts)。内置工具包括：
