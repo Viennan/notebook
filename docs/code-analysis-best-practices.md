@@ -19,6 +19,8 @@
 ```text
 notes/code-ana_${RepoName}/
 ├── INDEX.md
+├── ref/
+│   └── INDEX.md             # 官方或权威参考资料索引
 ├── ${repo}/                 # 待分析仓库，使用 git submodule 引入
 ├── ${repo}-core-report.md   # 主报告，可按实际命名
 └── ${repo}-${topic}.md      # 专题报告，可多篇
@@ -28,18 +30,37 @@ notes/code-ana_${RepoName}/
 
 - topic 目录使用 `notes/code-ana_${RepoName}`。
 - submodule 目录使用上游仓库名，保持短小稳定。
+- `ref/INDEX.md` 用于索引官方或权威参考资料，避免权威 URL 散落在报告正文里。
 - `INDEX.md` 只做摘要、阅读顺序和文件入口，不承载长分析。
+
+### 权威资料参考机制
+
+代码分析 topic 可以在 `ref/` 目录维护官方或权威参考资料索引。推荐从初始化阶段就建立 `ref/INDEX.md`，后续分析时按需扩充。
+
+`ref/INDEX.md` 建议记录：
+
+- 官方文档入口、上游仓库、release、规范、论文或一手发布资料。
+- 本地 submodule 内的 README、CONTRIBUTING、SECURITY、docs、website docs 等资料入口。
+- 每个资料的用途，例如产品语境、开发者指南、API reference、设计文档或安全边界。
+- 必要时记录最后核对日期、对应版本、适用范围和已知过时风险。
+
+使用原则：
+
+- 资料正文默认不搬运到 notebook；优先保存 URL、用途说明和本地相对链接。
+- 分析结论以当前 submodule commit 的源码为准，在线资料用于补充意图、概念和用户可见行为。
+- topic `INDEX.md` 应索引 `ref/INDEX.md`，但不把所有参考 URL 展开到 topic 首页。
+- 新增非官方资料时，优先选择一手来源；社区文章、博客和讨论串要标明其辅助性质。
 
 ### submodule 引入
 
-优先把待分析仓库作为 submodule 放在对应 topic 内：
+优先把待分析仓库作为 submodule 放在对应 topic 内。submodule 引入命令由用户在本地执行；agent 只提供命令和目标路径，等待用户确认完成后，再继续创建索引、记录 commit 和做后续检查。
 
 ```bash
 mkdir -p notes/code-ana_${RepoName}
 git submodule add ${RepositoryURL} notes/code-ana_${RepoName}/${repo}
 ```
 
-如果 `.gitmodules` 已经手动配置好，则使用：
+如果 `.gitmodules` 已经手动配置好，也应把初始化命令交给用户执行：
 
 ```bash
 git submodule update --init --recursive notes/code-ana_${RepoName}/${repo}
@@ -116,6 +137,7 @@ rg --files notes/code-ana_${RepoName}/${repo} -g 'package.json' -g 'bun.lock' -g
 - 创建 `notes/code-ana_${RepoName}/`。
 - 引入 submodule。
 - 创建 topic `INDEX.md`。
+- 创建 `ref/INDEX.md`，记录官方或权威参考资料入口。
 - 更新 `notes/INDEX.md`。
 - 记录仓库 commit 和分析范围。
 - 判断是否需要依赖初始化；若需要，选择对应技术栈的只读/冻结命令。

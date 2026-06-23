@@ -4,3 +4,6 @@
 [submodule "notes/code-ana_opencode/opencode"]
 	path = notes/code-ana_opencode/opencode
 	url = https://github.com/anomalyco/opencode.git
+[submodule "notes/code-ana_hermes-agent/hermes-agent"]
+	path = notes/code-ana_hermes-agent/hermes-agent
+	url = https://github.com/NousResearch/hermes-agent.git
