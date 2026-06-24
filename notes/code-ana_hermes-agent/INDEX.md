@@ -1,6 +1,6 @@
 # hermes-agent 研究知识库索引
 
-本 topic 针对 [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) 做代码分析，源码作为 submodule 放在 [`./hermes-agent`](./hermes-agent)。当前已完成 topic 初始化、权威参考资料索引和 core report。
+本 topic 针对 [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent) 做代码分析，源码作为 submodule 放在 [`./hermes-agent`](./hermes-agent)。当前已完成 topic 初始化、权威参考资料索引、core report 和 memory system 专题报告。
 
 ## 仓库信息
 
@@ -26,6 +26,20 @@
 
 适合先读，用来建立 Hermes Agent 的主干执行链路和源码地图。
 
+### [`hermes-agent-memory-system.md`](./hermes-agent-memory-system.md)
+
+记忆系统专题报告，重点覆盖：
+
+- Hermes memory 的六条通道：内建 curated memory、provider static block、provider dynamic recall、tool result、post-turn sync 和 SQLite transcript archive
+- 各类 memory 在 prompt / user message / tool result / external backend / SessionDB 中的位置，以及何时进入模型上下文
+- 内建 `MEMORY.md` / `USER.md` 的冻结 system prompt snapshot、读写时机、容量限制、漂移防护和注入安全扫描
+- built-in `memory` tool 相关 prompt 路径：`MEMORY_GUIDANCE`、`MEMORY_SCHEMA`、background review、onboarding profile build、clarify 和 write approval
+- `MemoryProvider` / `MemoryManager` 外部 provider 生命周期：static prompt block、turn-start prefetch、post-turn sync、session hooks、provider tools 和内建写入镜像
+- 8 个 bundled external provider 的工具清单、自动 recall/写入机制、生成算法取向和优缺点
+- Honcho provider 的 peer/session/user/AI 建模、`context/tools/hybrid` recall mode、base context + dialectic supplement 双层自动注入
+- 后台 background review、`write_approval`、pending store 如何让主动记忆具备治理边界
+- `session_search` / SQLite FTS5 作为 transcript archive recall，与 memory provider 的分工
+
 ## 参考资料
 
 - [`ref/INDEX.md`](./ref/INDEX.md)：官方文档、上游仓库和源码内权威资料入口。
@@ -35,5 +49,5 @@
 后续开始分析时，可优先补充：
 
 1. `hermes-agent-tool-runtime.md`：工具 registry、toolsets、approval、MCP、terminal backend 与 managed gateway 专题。
-2. `hermes-agent-prompt-memory-skills.md`：system prompt、memory、skills、自我改进闭环专题。
+2. `hermes-agent-skill-system.md`：skill 作为 procedural memory 的创建、加载、更新、自我改进和审批专题。
 3. `hermes-agent-gateway-session.md`：gateway session key、agent cache、platform callbacks、reset/resume 专题。
