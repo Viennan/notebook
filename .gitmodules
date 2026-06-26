@@ -7,3 +7,6 @@
 [submodule "notes/code-ana_hermes-agent/hermes-agent"]
 	path = notes/code-ana_hermes-agent/hermes-agent
 	url = https://github.com/NousResearch/hermes-agent.git
+[submodule "notes/code-ana_codex/codex"]
+	path = notes/code-ana_codex/codex
+	url = https://github.com/openai/codex.git

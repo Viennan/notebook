@@ -18,6 +18,7 @@ This project is a collection of study notes, including but not limited to course
   - `notes/INDEX.md` - Index all `topic` by means of summaries. It is recommended to avoid linking files inside a topic.
   - `notes/${TopicName}/INDEX.md` - The index for files of the specific `topic`.
   - All `INDEX.md` should be optimized for quick searching and on-demand loading.
+  - Before committing, check and update every potentially affected `INDEX.md`, including parent-level and topic-level indexes.
 - File link rules
   - Use relative link within the same `topic`, eg: "[xxx](./intro.md)".
   - Use absolute link (starting with "notes") across different `topic`, eg: "[xxx](notes/xxx/xxx.md)"
