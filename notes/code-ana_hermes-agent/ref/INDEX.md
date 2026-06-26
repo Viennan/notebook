@@ -11,6 +11,19 @@
   - 用途：确认上游源码、README、issue/release 入口和项目元信息。
   - 本地镜像：[`../hermes-agent`](../hermes-agent)
 
+## 技能系统参考
+
+- [`../hermes-agent/website/docs/user-guide/features/skills.md`](../hermes-agent/website/docs/user-guide/features/skills.md)
+  - 用途：理解 skill 的用户可见行为、加载方式和 agent-managed skills。
+- [`../hermes-agent/website/docs/developer-guide/creating-skills.md`](../hermes-agent/website/docs/developer-guide/creating-skills.md)
+  - 用途：理解 skill 的目录结构、frontmatter、最佳实践和 authoring 约束。
+- [`../hermes-agent/website/docs/developer-guide/prompt-assembly.md`](../hermes-agent/website/docs/developer-guide/prompt-assembly.md)
+  - 用途：理解 skills system 如何向 prompt 贡献紧凑索引，以及与其他 prompt 层的装配顺序。
+- [`../hermes-agent/website/docs/user-guide/features/curator.md`](../hermes-agent/website/docs/user-guide/features/curator.md)
+  - 用途：理解 curator 的自动维护、归档和 consolidation 行为。
+- [`../hermes-agent/website/docs/reference/tools-reference.md`](../hermes-agent/website/docs/reference/tools-reference.md)
+  - 用途：核对 `skill_manage`、`skill_view`、`skills_list` 等工具入口在参考文档中的定义。
+
 ## 本地源码内资料入口
 
 - [`../hermes-agent/README.md`](../hermes-agent/README.md)：项目定位、核心能力、安装入口和文档导航。
