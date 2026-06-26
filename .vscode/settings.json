@@ -1,0 +1,7 @@
+{
+    "files.watcherExclude": {
+        "notes/code-ana_graphify/graphify/**": true,
+        "notes/code-ana_opencode/opencode/**": true,
+        "notes/code-ana_hermes-agent/hermes-agent/**": true
+    }
+}

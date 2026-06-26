@@ -48,6 +48,7 @@
 
 - 新建代码分析 topic 时，使用 `notes/code-ana_${RepoName}/`，其中 submodule 放在 topic 目录内。
 - 引入 submodule 的命令交给用户执行；用户确认后，agent 再继续创建索引、记录 commit 和做后续检查。
+- 新增或变更 submodule 后，同步维护 `.vscode/settings.json` 的 `files.watcherExclude`，只排除 submodule 路径如 `notes/code-ana_${RepoName}/${repo}/**`，不要排除整个 topic。
 - 每个代码分析 topic 应维护 `ref/INDEX.md`，集中索引官方或权威资料。
 - 分析结论以当前 submodule commit 的源码为准，在线资料用于补充意图和用户可见行为。
 - 深入分析前先找主执行链路，再围绕用户问题做专题，不按目录复述源码。

@@ -73,6 +73,12 @@ git submodule update --init --recursive notes/code-ana_${RepoName}/${repo}
 - 是否有子模块。
 - 分析时采用的分支或 tag。
 
+同时维护 VS Code 文件监听排除，避免大型 submodule 占满 watcher 导致新输出的 Markdown 无法被正常跟踪：
+
+- 在 `.vscode/settings.json` 的 `files.watcherExclude` 中为 submodule 路径加入 `true`。
+- 排除粒度只到 submodule 目录，例如 `notes/code-ana_${RepoName}/${repo}/**`；不要排除整个 `notes/code-ana_${RepoName}/**`，否则 topic 内新生成的 Markdown 也可能被编辑器忽略。
+- 新增、移动或移除 submodule 时，同步增删对应 watcher 排除项，保留用户已有的其他 VS Code 设置。
+
 常用检查：
 
 ```bash
@@ -136,6 +142,7 @@ rg --files notes/code-ana_${RepoName}/${repo} -g 'package.json' -g 'bun.lock' -g
 
 - 创建 `notes/code-ana_${RepoName}/`。
 - 引入 submodule。
+- 将 submodule 路径加入 `.vscode/settings.json` 的 `files.watcherExclude`，只排除 `${repo}/**`。
 - 创建 topic `INDEX.md`。
 - 创建 `ref/INDEX.md`，记录官方或权威参考资料入口。
 - 更新 `notes/INDEX.md`。
