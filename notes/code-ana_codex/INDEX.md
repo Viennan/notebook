@@ -29,6 +29,18 @@
 
 Codex 交互式 agent core 主链路报告。覆盖默认 `codex` 入口到 TUI/app-server、`thread/start` 与 `turn/start`、core SQ/EQ、`submission_loop`、`RegularTask`/`run_turn`、Responses stream、工具执行、exec policy、approval/sandbox、以及 core event 回传到 TUI 的端到端链路。
 
+### [`codex-sandbox-approvals.md`](./codex-sandbox-approvals.md)
+
+Codex sandbox 与权限边界专题报告。覆盖 sandbox 的产品语义、`PermissionProfile` 权限模型、approval policy 分工、shell 工具执行链路、macOS Seatbelt、Linux bubblewrap/seccomp、Windows restricted token/ACL/WFP，以及 network proxy / network approval 的关系。
+
+### [`codex-session-scheduling.md`](./codex-session-scheduling.md)
+
+Codex session 执行调度专题报告。覆盖 thread/session/turn/task 的关系、SQ/EQ 队列、`submission_loop` 分发、`SessionTask` 与 active turn 状态机、`run_turn` 内层循环、steer/interrupt/input queue/mailbox/idle 自动任务、app-server listener/unload，以及 multi-agent/subagent 并发限流。
+
+### [`codex-goal-mode.md`](./codex-goal-mode.md)
+
+Codex Goal 模式专题报告。覆盖 Goal 与普通非 goal 模式的差异、持久化 `ThreadGoal` 状态机、`get_goal`/`create_goal`/`update_goal` 工具、idle 自动续跑、完成/阻塞审计、token/time 记账、预算与错误防循环、resume 恢复顺序，以及长 objective 附件化。
+
 ### [`ref/INDEX.md`](./ref/INDEX.md)
 
 官方或权威资料入口。当前记录上游仓库、官方 Codex 文档、Codex CLI 文档、开源组件说明、README、贡献与安装资料等，供后续分析按需加载。
@@ -40,4 +52,3 @@ Codex 交互式 agent core 主链路报告。覆盖默认 `codex` 入口到 TUI/
 1. `codex-rs-architecture.md`：`codex-rs` workspace、core/TUI/CLI/app-server/protocol 等 crate 的职责边界。
 2. `codex-tool-runtime.md`：shell、patch、file read/write、MCP、browser/app 等工具能力如何注册、审批、执行和回传。
 3. `codex-customization-surface.md`：`AGENTS.md`、skills、plugins、MCP、hooks、config 与 memory 在运行时上下文中的位置。
-4. `codex-sandbox-approvals.md`：sandbox、approval policy、权限提示、网络限制和安全边界的实现。
