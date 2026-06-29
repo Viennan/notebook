@@ -10,9 +10,51 @@ Goal 模式不是一个更长的 prompt，也不是 `Plan` / `Default` 这种 co
 2. **active goal 会自动续跑**：当线程 idle 时，goal runtime 读取 active goal，构造隐藏的 continuation steering item，并通过 `try_start_turn_if_idle` 启动下一轮 regular turn。
 3. **完成不是靠“最后一句话说完成”**：模型只能通过 `update_goal` 把目标标成 `complete` 或 `blocked`；pause/resume/budget/usage-limit 由用户或系统控制。
 4. **“保证完成”是工程约束，不是数学保证**：Codex 不能证明模型一定正确完成任务，但它用持久目标、自动续跑、完成审计 prompt、状态机、预算/错误保护、恢复机制和 UI 可见性，减少长任务半途漂移或草率结束。
-5. **长任务优化集中在四处**：跨 turn 续跑、进度记账、状态恢复、目标更新注入。它们都围绕“目标还没达成就继续，真的阻塞或耗尽预算就停住并交代清楚”设计。
+5. **Goal 的核心动机是突破单 turn 长闭环的可靠性边界**：普通 `run_turn` 可以在一个 turn 内反复执行“模型采样 -> 工具调用 -> 工具结果回灌 -> 再采样”，但当 step 数非常大时，继续把所有决策压在同一个 turn 的自我循环上，会放大上下文污染、目标漂移、过早总结、恢复困难和不可观察的问题。Goal 模式把长任务改造成跨 turn 的 durable workflow。
+6. **长任务优化集中在四处**：跨 turn 续跑、进度记账、状态恢复、目标更新注入。它们都围绕“目标还没达成就继续，真的阻塞或耗尽预算就停住并交代清楚”设计。
 
 一句话概括：普通模式是“用户发一轮，Codex 做到本轮结束”；Goal 模式是“线程有一个可恢复、可记账、可自动续跑的完成条件，Codex 在每轮结束后继续追它，直到状态进入停止态”。
+
+## 为什么需要 Goal 模式
+
+Goal 模式要解决的不是“普通模式完全不能做多步骤任务”。普通 turn 本身已经支持多轮采样和工具调用：模型发出 function/tool call 后，Codex 执行工具并把结果写回 history；只要模型继续请求 follow-up，`run_turn` 就会继续采样。这条普通 turn 机制在 [`core/src/session/turn.rs`](./codex/codex-rs/core/src/session/turn.rs) 里体现为：tool call 会触发后续采样，只有 assistant message 且不再需要 follow-up 时才进入 turn stop。也就是说，非 Goal 模式已经可以完成“工具调用 -> 观察结果 -> 再调用工具”的局部闭环。
+
+真正的问题出现在任务 horizon 很长时：如果一个目标需要几十甚至上百个有效 step，单个 turn 内的闭环会逐渐从“高效自治”变成“脆弱的长跑”。
+
+### 单 turn 长闭环的瓶颈
+
+1. **继续/结束完全贴着当前上下文判断**
+   普通 turn 的结束边界主要由模型本次输出决定：继续发工具调用或 `end_turn=false` 就继续；只输出最终 assistant message 就进入停止流程。短任务里这很自然，长任务里则容易出现“阶段性完成感”被误判成“任务完成”。
+
+2. **目标容易被执行细节淹没**
+   长任务会产生大量工具结果、错误重试、局部决策、测试输出和用户 steer。即使有 compaction，模型每次判断时看到的是被历史和摘要加工后的上下文；原始目标如果只存在于早期对话，就更容易被稀释或被当前阶段的局部目标替代。
+
+3. **模型的自我循环质量随 step 数下降**
+   LLM 可以做多步推理，但持续几十轮“计划、执行、评估、修正、再计划”时，常见风险是重复检查、漏掉已知约束、过早写总结、把临时方案当完成、或在失败后继续消耗资源。这里的限制不只是 token 上限，也是长 horizon agent loop 的稳定性问题。
+
+4. **单 turn 缺少持久、可观察的完成状态**
+   普通模式里 assistant 说“完成了”只是对话内容，不是线程级状态。系统无法在后续 idle 边界上知道“这个目标还欠什么”，也无法把 active / paused / blocked / budget_limited / complete 这些状态作为调度条件。
+
+5. **恢复与用户控制边界不够清晰**
+   超长任务需要能暂停、恢复、编辑目标、统计预算、在错误或用量限制时停止到明确状态。把这些都塞进一个连续 turn，会让调度、UI、记账和错误恢复都依赖模型在当前上下文里“记得自己该怎么做”。
+
+### Goal 的设计回答
+
+Goal 模式把“继续完成目标”从单个 turn 的模型自律，提升为 thread runtime 的责任：
+
+| 单 turn 长闭环问题 | Goal 模式的回答 |
+| --- | --- |
+| 模型在某个阶段性节点可能把局部完成误判为全局完成。 | completion 不只是最终话术；必须通过 `update_goal(status="complete")` 改变持久 goal 状态，并受 completion audit prompt 约束。 |
+| 原始目标在长 history/compaction 后被稀释。 | objective 持久化为 `ThreadGoal.objective`，每次 continuation 都重新注入完整目标，并要求不要缩小成功条件。 |
+| 超多 step 的持续自我循环质量下降。 | 每个 turn 只需要朝真实目标做具体进展；turn 结束后如果 goal 仍 active，runtime 在 idle 边界重新点火。 |
+| 系统不知道“还要不要继续”。 | `active` 是明确调度状态；只要目标 active 且线程 idle，goal runtime 就尝试启动 continuation turn。 |
+| 错误、预算、用户暂停等边界会混在普通对话里。 | blocked / usage_limited / budget_limited / paused / complete 都是状态机的一部分，调度和 UI 可以直接理解。 |
+
+因此，Goal 模式存在的最重要意义可以概括为：
+
+> 当任务复杂到不能稳定地压在一个 turn 的连续工具闭环里完成时，Goal 模式用持久目标、跨 turn continuation、完成审计和状态机，把“长 horizon agent loop”工程化。
+
+这里的跨 turn 不是为了让 LLM “忘掉前文重新开始”，也不是多 agent 协作；它仍沿用同一个 thread/session lineage。关键是每个 turn 结束后，系统不会把任务自然停止当作完成，而是依据持久 goal 状态决定是否继续，并在下一 turn 用 [`continuation.md`](./codex/codex-rs/ext/goal/templates/goals/continuation.md) 隐藏 steering 重新对齐完整目标、当前预算和完成标准。
 
 ## 用户语义
 
@@ -185,6 +227,71 @@ Goal 扩展暴露三个 Responses API function tool，定义在 [`ext/goal/src/s
 
 这些模板是 Goal 模式最强的“行为约束”来源：它们让模型每次续跑都重新对齐完整目标，并把“当前证据是否足够证明完成”作为标记 complete 前的必要步骤。
 
+### Goal 特有的 `user` role hidden steering
+
+这里的范围只包括 Goal extension 自己合成、且服务于 Goal runtime 的 `user` role item。普通 session initial context、hook prompt、compaction summary、compaction 保留的用户消息副本也可能以 `role: "user"` 出现在 goal turn 附近，但它们不是 Goal 模式特有机制，不在本节构造示例。
+
+Goal 特有的三类 item 都由 [`ext/goal/src/steering.rs`](./codex/codex-rs/ext/goal/src/steering.rs) 构造，经 `goal_context_input_item` 包装成 `InternalModelContextFragment(source="goal")`。它们的共同点是：raw item 的 role 是 `user`，但内容带 `<codex_internal_context source="goal">`，属于 hidden internal context，不应被理解成真实用户又输入了一句话。
+
+#### 1. Active goal continuation
+
+active goal 在 thread idle 后自动续跑时，runtime 会把持久化的 objective、预算和完成审计要求重新注入下一轮 regular turn。结构大致是：
+
+```json
+{
+  "type": "message",
+  "role": "user",
+  "content": [
+    {
+      "type": "input_text",
+      "text": "<codex_internal_context source=\"goal\">\nContinue working toward the active thread goal.\n\n<objective>\n...\n</objective>\n\nBudget:\n- Tokens used: ...\n- Token budget: ...\n- Tokens remaining: ...\n\nCompletion audit:\n...\n</codex_internal_context>"
+    }
+  ]
+}
+```
+
+它对应 [`templates/goals/continuation.md`](./codex/codex-rs/ext/goal/templates/goals/continuation.md)：要求不要缩小 objective、从当前状态取证、必要时维护 plan，并在标记 complete 前做 requirement-by-requirement completion audit。
+
+#### 2. Objective updated steering
+
+用户在 active goal 运行中编辑 objective 时，runtime 会向当前 turn 注入新目标提示，让模型停止继续只服务旧 objective 的工作。结构大致是：
+
+```json
+{
+  "type": "message",
+  "role": "user",
+  "content": [
+    {
+      "type": "input_text",
+      "text": "<codex_internal_context source=\"goal\">\nThe active thread goal objective was edited by the user.\n\n<untrusted_objective>\n...\n</untrusted_objective>\n\nAdjust the current turn to pursue the updated objective. Avoid continuing work that only served the previous objective unless it also helps the updated objective.\n\nDo not call update_goal unless the updated goal is actually complete.\n</codex_internal_context>"
+    }
+  ]
+}
+```
+
+它对应 [`templates/goals/objective_updated.md`](./codex/codex-rs/ext/goal/templates/goals/objective_updated.md)：新 objective 是用户提供的数据，覆盖旧 objective；模型应调整当前 turn，而不是继续惯性执行旧目标。
+
+#### 3. Budget-limit steering
+
+goal token budget 达到上限后，系统会把目标标为 `budget_limited`，并向当前 turn 注入收尾提示。结构大致是：
+
+```json
+{
+  "type": "message",
+  "role": "user",
+  "content": [
+    {
+      "type": "input_text",
+      "text": "<codex_internal_context source=\"goal\">\nThe active thread goal has reached its token budget.\n\n<objective>\n...\n</objective>\n\nBudget:\n- Tokens used: ...\n- Token budget: ...\n- Tokens remaining: 0\n\nThe system has marked the goal as budget_limited, so do not start new substantive work for this goal. Wrap up this turn soon: summarize useful progress, identify remaining work or blockers, and leave the user with a clear next step.\n\nDo not call update_goal unless the goal is actually complete.\n</codex_internal_context>"
+    }
+  ]
+}
+```
+
+它对应 [`templates/goals/budget_limit.md`](./codex/codex-rs/ext/goal/templates/goals/budget_limit.md)：重点不是继续推进，而是停止新工作、总结进展和剩余问题。若目标其实已经完成，仍允许调用 `update_goal(status="complete")`，否则保持 budget-limited 收尾。
+
+旧历史里还可能看到兼容格式 `<goal_context>...</goal_context>`；当前生成路径使用的是 `<codex_internal_context source="goal">...</codex_internal_context>`。
+
 ## 进度记账与预算控制
 
 进度记账由 [`ext/goal/src/accounting.rs`](./codex/codex-rs/ext/goal/src/accounting.rs)、[`ext/goal/src/extension.rs`](./codex/codex-rs/ext/goal/src/extension.rs)、[`state/src/runtime/goals.rs`](./codex/codex-rs/state/src/runtime/goals.rs) 配合完成：
@@ -209,31 +316,40 @@ Goal 扩展暴露三个 Responses API function tool，定义在 [`ext/goal/src/s
 
 Goal 模式针对“多步骤、长时间运行”做了几类显式调整。
 
-### 1. 跨 turn 目标保持
+### 1. 把超长 step loop 拆到多个 turn
+
+非 Goal 模式的 `run_turn` 可以在同一 turn 内反复工具调用，但这种闭环越长，越依赖模型在当前上下文里持续保持目标、判断下一步、识别完成与否。Goal 模式允许一个 turn 在做出实质进展后结束，同时让 active goal 在 idle 边界自动触发下一轮 continuation。
+
+这带来两个效果：
+
+- 单个 turn 不必承载整个长 horizon 的所有计划、执行、评估和收尾压力。
+- 每次 continuation 都能重新注入完整 objective、预算和完成审计要求，把下一段工作重新锚回最终目标。
+
+### 2. 跨 turn 目标保持
 
 普通对话越长越容易把“最初到底要完成什么”稀释在历史里。Goal 模式把 objective 放到持久字段里，每次 continuation 都重新注入，并明确要求不缩小成功条件。这让目标不依赖模型记忆或 compact summary 的质量。
 
-### 2. 自动 idle continuation
+### 3. 自动 idle continuation
 
 长任务不需要用户每次说“继续”。只要 goal 仍是 active、线程 idle、没有用户/client pending work、不是 Plan mode，runtime 就会启动下一轮 turn。这个续跑仍受 session 串行调度约束，所以不会和用户 steer 或另一个 turn 并发修改同一 thread state。
 
-### 3. 可暂停、可恢复、可编辑
+### 4. 可暂停、可恢复、可编辑
 
 用户可以 pause/resume/edit/clear。暂停后不会自动续跑；resume 把状态改回 active；编辑目标时 runtime 会在当前 turn 注入 updated-objective steering。TUI 在恢复 paused/blocked/usage-limited goal 后还会提示用户是否 resume。
 
-### 4. 预算和用量透明
+### 5. 预算和用量透明
 
 Goal 有独立 token budget、tokens used、time used。UI 状态行会显示 active goal 的时间或 token 预算进度；complete/budget-limited 等状态会显示收尾用量。metrics 和 analytics 也记录 created/resumed/completed/budget_limited/usage_limited/blocked、token count 和 duration。
 
-### 5. 失败防循环
+### 6. 失败防循环
 
 普通错误如果直接进入 idle continuation，可能形成“失败 -> 自动继续 -> 再失败”的循环。Goal runtime 在 non-retryable turn error 后把目标置为 blocked，在 usage-limit 后置为 usage_limited，budget 耗尽后置为 budget_limited。这些状态都会停止自动续跑。
 
-### 6. Resume 顺序优化
+### 7. Resume 顺序优化
 
 app-server 在 resume 线程时先发送 token usage / goal snapshot，再触发 thread idle lifecycle。这样客户端先看到恢复后的 goal 状态，之后 active goal 才可能自动继续，避免 UI 和实际运行状态错位。
 
-### 7. 长目标附件化
+### 8. 长目标附件化
 
 目标字段上限 4000 字符，但 TUI 可以把过长 objective、pending paste、图片写成 `$CODEX_HOME/attachments/<uuid>/...`，再把 goal objective 替换为短引用。这让 Goal 模式能承载复杂规格，同时保持协议字段短小可验证。
 
@@ -283,6 +399,53 @@ Goal 利用的正是这个扩展点：
 - core 负责拒绝 busy、Plan mode、pending trigger-turn。
 
 因此 Goal 模式没有引入新的全局 scheduler；它是在每个 thread 的 idle 边界上添加一个“如果 active goal 还没结束，就发起下一轮”的局部续跑策略。
+
+## FAQ：Goal 与 Compaction
+
+### Q1：Compaction 后，Goal objective 是否会作为特殊 developer message 自动重新注入？
+
+不会。Goal extension 安装时注册的是 thread/config/turn/token/tool lifecycle contributor 和 tool contributor，没有注册 `context_contributor` 或 `turn_input_contributor`。因此它不会参与 `build_initial_context_with_world_state(...)` 的 canonical context 重建链路，也不会在 compaction 后额外生成一条“当前处于 Goal 模式 / active goal 是什么”的 developer message。
+
+这意味着 [`InitialContextInjection::BeforeLastUserMessage`](./codex/codex-rs/core/src/compact.rs) 保护的是普通 prompt 系统里的 canonical context：权限、环境、AGENTS.md、skills/plugins、world state、协作模式等。它本身不等价于“重新注入 active goal objective”。
+
+### Q2：Mid-turn compaction 会保留 Goal 的 `InternalModelContextFragment` 吗？
+
+通常不会把原始 Goal internal fragment 当作真实 user message 保留。Goal continuation、objective-updated、budget-limit 都会被包装成 `InternalModelContextFragment(source="goal")`，wire 层 role 是 `user`，但它是 hidden internal context，不是用户自然语言输入。
+
+compaction 安装 replacement history 时会过滤上下文型 user message。local compaction 的 `collect_user_messages(...)` 只收能解析成 `TurnItem::UserMessage` 的真实用户消息；remote compaction 的 `should_keep_compacted_history_item(...)` 也会丢弃 non-user-content 的 user wrapper，只保留真实 user message、hook prompt、assistant/compaction item 等。这个设计避免旧权限、旧环境、旧 hidden context 被重复或过期地带入新窗口。
+
+### Q3：压缩后如果没有“真实用户消息”，第一条 `user` role message 是什么？
+
+不一定是用户手写消息。Codex 的 Responses history 里 `role: "user"` 会承载多类内容：真实用户输入、contextual user fragment、hook prompt、compaction summary。mid-turn compaction 会把 canonical initial context 插到最后真实 user message 之前；如果没有真实 user message，则插到 compaction summary 或 compaction item 之前，让 summary/compaction item 保持模型期望的位置。
+
+所以“压缩后第一条 user role message”可能是重新注入的 contextual user context，也可能是 compaction summary，而不是一个真实用户消息。这是 prompt 系统的 typed-history 设计，不表示用户真的又输入了一轮。
+
+### Q4：如果 summary 没有写入 goal，LLM 是否会在 mid-turn compaction 后丢失目标？
+
+要区分两种“丢失”。
+
+系统状态不会丢。Goal objective/status/budget/usage 存在独立的 `thread_goals` 持久状态里，不依赖 transcript，也不会因为 `replace_compacted_history(...)` 被删除。`GoalRuntime`、`GoalService` 和 `get_goal` 工具都能重新读取它。
+
+模型当前上下文可能短暂丢。排除下一轮 continuation steering 后，mid-turn compaction 并没有看到一条专门的 active-goal developer message 会自动补回 objective。模型能否在同一 turn 的 compact 后 follow-up 中继续知道目标，主要依赖 compaction summary 是否把目标语义写进去，或者依赖后续工具/事件重新暴露目标。
+
+因此，Goal 的强保证在 runtime state 层；prompt 层对 mid-turn compaction 的目标保持是“summary 应该保留重要任务语义”的软约束，而不是独立的 hard reinjection。
+
+### Q5：是否有 prompt 提醒 LLM“当前处于 Goal 模式”，从而引导它调用 `get_goal`？
+
+没有看到通用 developer prompt 明确写“当前处于 Goal 模式”。模型能看到的间接提示主要来自工具集合：当 goals feature 启用、线程有持久状态且不是 review subagent 时，Goal extension 会暴露 `get_goal`、`create_goal`、`update_goal` 三个工具；`get_goal` 的 tool description 明确说明可以读取当前 thread goal、状态、预算和用量。
+
+这条路径是恢复能力，不是自动提示。也就是说，compaction 后模型如果意识到需要恢复目标，可以调用 `get_goal`；但如果当前 prompt 没有让它意识到“我正在追一个 active goal”，工具描述本身不一定足以让它主动恢复 objective。
+
+### Q6：除 continuation 外，还有哪些路径会重新把 goal objective 暴露给模型？
+
+有几条有限路径：
+
+- 用户运行中编辑 objective 时，runtime 会注入 objective-updated steering，内容包含新 objective。
+- token budget 达到上限后，tool lifecycle 会注入 budget-limit steering，内容包含 objective 和预算状态，要求收尾。
+- 模型主动调用 `get_goal` 时，工具输出会返回结构化 `goal`。
+- `create_goal` / `update_goal` 的工具输出也会返回当前 goal 状态；如果这些输出发生在 compaction 前，summary 也可能把它们吸收进任务摘要。
+
+这些路径都不是“每次 compaction 后无条件补回 objective”的机制。更准确地说，Goal 模式通过持久状态保证系统不忘目标，通过 continuation/事件 steering 和 `get_goal` 工具让模型在需要时重新获得目标，通过 compaction summary 在同一窗口内尽量延续目标语义。
 
 ## 设计取舍
 
