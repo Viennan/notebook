@@ -37,6 +37,10 @@ Codex sandbox 与权限边界专题报告。覆盖 sandbox 的产品语义、`Pe
 
 Codex session 执行调度专题报告。覆盖 thread/session/turn/task 的关系、SQ/EQ 队列、`submission_loop` 分发、`SessionTask` 与 active turn 状态机、`run_turn` 内层循环、steer/interrupt/input queue/mailbox/idle 自动任务、app-server listener/unload，以及 multi-agent/subagent 并发限流。
 
+### [`codex-multi-agent.md`](./codex-multi-agent.md)
+
+Codex multi-agent / subagent 机制专题报告。覆盖 V1 `multi_agent_v1` 与 V2 `collaboration` 工具族、`AgentControl` / `AgentRegistry` / `AgentPath` / mailbox 架构、spawn/fork/resume 生命周期、runtime override 继承、V2 residency 与 execution limiter、模型可见 tool specs / prompt hints / `AgentMessage`、app-server collab item、hook、配置和 `spawn_agents_on_csv` 批处理扩展。
+
 ### [`codex-goal-mode.md`](./codex-goal-mode.md)
 
 Codex Goal 模式专题报告。覆盖 Goal 为何要把超长 step loop 从单 turn 连续工具闭环提升为跨 turn durable workflow、Goal 与普通非 goal 模式的差异、持久化 `ThreadGoal` 状态机、`get_goal`/`create_goal`/`update_goal` 工具、Goal 特有的 hidden steering `user` role message、idle 自动续跑、完成/阻塞审计、token/time 记账、预算与错误防循环、resume 恢复顺序、长 objective 附件化，以及 Goal 与 compaction 兼容性的 FAQ。

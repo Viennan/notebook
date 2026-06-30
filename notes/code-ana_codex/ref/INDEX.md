@@ -8,6 +8,8 @@
 - [Codex 官方文档](https://developers.openai.com/codex)：OpenAI Codex 产品、CLI、IDE、app、cloud、配置、安全和自定义能力的官方文档入口。
 - [Codex CLI 文档](https://developers.openai.com/codex/cli)：本地终端 Codex CLI 的安装、使用和行为说明。
 - [Codex 开源组件说明](https://developers.openai.com/codex/open-source)：官方列出的开源组件边界；其中 `openai/codex` 是 Codex CLI、SDK 和 app-server 的主要源码位置。
+- [Codex Subagents](https://developers.openai.com/codex/subagents)：官方 subagent workflow、可用性、管理方式、自定义 agents、`[agents]` 配置和示例入口。
+- [Codex Subagent concepts](https://developers.openai.com/codex/concepts/subagents)：官方 subagent 概念、适用场景、上下文污染/腐化权衡、显式触发原则和模型/推理选择语境。
 - [Codex GitHub Releases](https://github.com/openai/codex/releases/latest)：发布版本、二进制包和版本节奏核对入口。
 
 ## 上游仓库内资料
@@ -23,7 +25,7 @@
 
 ## 当前核对记录
 
-- 核对日期：2026-06-26
+- 核对日期：2026-06-30
 - 上游分支：`main`
 - `refs/heads/main` 参考 commit：`6d2168f06ae275d5e1f73cabf935d2bcc8549998`
 - 源码 submodule：[`../codex`](../codex)
