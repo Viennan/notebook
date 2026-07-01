@@ -210,4 +210,5 @@ rg --files notes/code-ana_${RepoName}/${repo} -g 'package.json' -g 'bun.lock' -g
 - 先建立 session loop、tool call、permission、event/projection 等主线，再做专题。
 - 对 V1/V2 这类双轨实现，先比较抽象变化，再逐层研究 V2 部件。
 - 对 prompt、tool、compaction、multi-agent 等模型相关机制，要追问“provider 最终看到什么”。
+- 对 subagent、background worker、internal/synthetic agent 等机制，不能只写类型边界；必须补充父侧触发点、等待/阻塞点、事件或状态回传、history/DB/文件系统写入点和失败时序。
 - 对用户连续追问的问题，及时整理成 FAQ，避免知识散落在对话中。
