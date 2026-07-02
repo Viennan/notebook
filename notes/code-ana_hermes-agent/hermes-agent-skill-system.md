@@ -365,7 +365,7 @@ memory 和 skill 最容易混淆，因为两者都属于“长期学习”。区
 | 用户纠正了我的做法 | 可记录偏好事实 | 必须修补对应任务 skill |
 | 一次任务完成记录 | 通常不保存 | 通常不保存，除非抽象成 class-level workflow |
 
-这也是我们在本 notebook 中借鉴 Hermes 时最有价值的点：`profile/EXP.md` 更像 skill，而不是 memory。它应该沉淀“以后如何维护这个仓库/这类 topic”，而不是记录流水账。
+这也解释了本 notebook 当前采用 `.agents/skills/` 承载维护流程的原因：仓库规则应以 task skill 形式保存为可审计的操作说明，而不是放进 profile 记忆或会话流水账。
 
 ## 设计优点与风险
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Repository Analysis"
+  short_description: "Analyze source repositories as note topics"
+  default_prompt: "Use $analyze-code-repository to create or update a code analysis topic."

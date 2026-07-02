@@ -2,33 +2,38 @@
 
 ## Introduction
 
-This project is a collection of study notes, including but not limited to course notes, code analysis, topical studies, and other related content.
+This repository is a collection of study notes, including course notes, code analysis, topical studies, reference curation, and related content.
 
-## Core Project Directories
+## Core Directories
 
-- notes - Each subdirectory under the `notes` directory represents a specific `topic`.
-- profile - Experience profile for AI agents maintaining this project.
+- `notes/` - Each direct subdirectory is one note topic.
+- `.agents/skills/` - Repository-specific AI agent skills. Read the relevant skill before non-trivial work.
 
-## Engineering Rules
+## Agent Workflow
 
-- Use regular patterns to name folders under `notes`. eg:
-  - `course_${School}_${CourseName}` represents course notes.
-  - `code-ana_${ReposName}` represents code analysis.
-- Index maintaining rules:
-  - `notes/INDEX.md` - Index all `topic` by means of summaries. It is recommended to avoid linking files inside a topic.
-  - `notes/${TopicName}/INDEX.md` - The index for files of the specific `topic`.
-  - All `INDEX.md` should be optimized for quick searching and on-demand loading.
-  - Before committing, check and update every potentially affected `INDEX.md`, including parent-level and topic-level indexes.
-- File link rules
-  - Use relative link within the same `topic`, eg: "[xxx](./intro.md)".
-  - Use absolute link (starting with "notes") across different `topic`, eg: "[xxx](notes/xxx/xxx.md)"
-  - `notes/INDEX.md` should use relative link.
-- Agent experience profile:
-  - `profile/EXP.md` is the general entry point for durable maintenance experience, not a code-analysis-only guide.
-  - Before non-trivial maintenance work, identify the work type first: course notes, code analysis, topical study, index maintenance, reference curation, or another topic pattern.
-  - Read `profile/EXP.md` as a discovery map, then follow only the same-directory links that match the current work.
-  - Treat linked profile docs such as `profile/code-analysis-best-practices.md` as on-demand topic guidance; add new linked docs when another topic type develops stable reusable practice.
-  - After finishing work, consider whether a reusable lesson should update `profile/EXP.md` or a linked profile doc.
-  - Keep detailed experience out of `AGENTS.md`; write it in `profile/EXP.md` or linked files under `profile/`.
-  - Keep `profile/EXP.md` within 3000 Chinese characters by linking to focused same-directory documents for on-demand loading.
-  - Update the profile only for stable lessons that reduce future user correction; do not record one-off task progress, temporary TODOs, or transient environment failures.
+- Choose the applicable skill from `.agents/skills/` before changing notes, indexes, topic structure, or code-analysis materials.
+- Use `.agents/skills/maintain-notebook-notes/SKILL.md` for general note maintenance, topic naming, links, and indexes.
+- Use `.agents/skills/analyze-code-repository/SKILL.md` for `notes/code-ana_*` topics, source submodules, reference indexes, and code-analysis reports.
+- Treat skills as task instructions, not as memory or task logs. Do not record one-off progress, short-lived task notes, transient failures, or conversation-derived memories in skills.
+- Update skills only when the user explicitly requests a repository AI-rule change or when the current task is specifically to maintain those rules.
+
+## Note Organization
+
+- Use regular topic folder names under `notes/`, for example:
+  - `course_${School}_${CourseName}` for course notes.
+  - `code-ana_${RepoName}` for code repository analysis.
+  - `study_${Subject}` for topical studies.
+- Keep topic-level content inside its topic directory unless a cross-topic link is intentionally needed.
+
+## Index Rules
+
+- `notes/INDEX.md` indexes all topics by concise summaries. Prefer linking topic entries, not individual files inside each topic.
+- `notes/${TopicName}/INDEX.md` indexes files inside that topic and gives the suggested reading path.
+- Keep every `INDEX.md` optimized for quick search and on-demand loading.
+- Before finishing changes, check and update every affected index, including `notes/INDEX.md` and topic-level indexes.
+
+## Link Rules
+
+- Use relative links within the same topic, for example `[intro](./intro.md)`.
+- Use repo-root absolute links starting with `notes/` across topics, for example `[other](notes/xxx/other.md)`.
+- In `notes/INDEX.md`, use relative links to topic directories.

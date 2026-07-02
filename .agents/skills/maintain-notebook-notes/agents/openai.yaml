@@ -1,0 +1,4 @@
+interface:
+  display_name: "Notebook Notes Maintenance"
+  short_description: "Maintain notebook topics and indexes"
+  default_prompt: "Use $maintain-notebook-notes to update this repository's notes and indexes."
