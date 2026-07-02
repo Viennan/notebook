@@ -55,7 +55,7 @@ Codex Prompt 系统与 Compaction 策略专题报告。覆盖 base/model instruc
 
 ### [`codex-memory-system.md`](./codex-memory-system.md)
 
-Codex memory 系统专题报告。聚焦是否存在可随时间增长的记忆层、是否会把记忆注入后续 session 以优化协作，以及 memory 的管理和回收机制；覆盖 read/write 双路径、`memories.sqlite`、`raw_memories.md` / `rollout_summaries/` / `MEMORY.md` workspace、Phase 1/Phase 2 pipeline、线程级 `use_memories` / `generate_memories`、external-context 污染标记、usage 记账与 reset。
+Codex memory 系统专题报告。聚焦是否存在可随时间增长的记忆层、是否会把记忆注入后续 session 以优化协作，以及 memory 的管理和回收机制；覆盖 read/write 双路径、`memories.sqlite`、Phase 1 抽取产物、Phase 2 workspace 与 consolidation agent、`raw_memories.md` / `rollout_summaries/` / `MEMORY.md` / `memory_summary.md` 的组织格式、read-path prompt 注入、LLM 主动声明 `<rollout_ids>` 的 citation 机制、`usage_count` 递增条件、stage1 snapshot、watermark、线程级 `use_memories` / `generate_memories`、external-context 污染标记与 reset。
 
 ### [`ref/INDEX.md`](./ref/INDEX.md)
 
